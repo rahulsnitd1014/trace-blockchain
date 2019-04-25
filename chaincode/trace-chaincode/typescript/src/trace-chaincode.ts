@@ -10,26 +10,26 @@ import { AdvanceShipNotice } from './asn';
 export class Trace extends Contract {
     public async initLedger(ctx: Context) {
         console.info('============= START : Initialize Ledger ===========');
-        const cars: any[] = [
-            {
-                color: 'blue',
-                make: 'Toyota',
-                model: 'Prius',
-                owner: 'Tomoko',
-            },
-            // {
-            //     color: 'red',
-            //     make: 'Ford',
-            //     model: 'Mustang',
-            //     owner: 'Brad',
-            // },
-        ];
+        // const cars: any[] = [
+        //     {
+        //         color: 'blue',
+        //         make: 'Toyota',
+        //         model: 'Prius',
+        //         owner: 'Tomoko',
+        //     },
+        //     {
+        //         color: 'red',
+        //         make: 'Ford',
+        //         model: 'Mustang',
+        //         owner: 'Brad',
+        //     },
+        // ];
 
-        for (let i = 0; i < cars.length; i++) {
-            cars[i].docType = 'car';
-            await ctx.stub.putState('CAR' + i, Buffer.from(JSON.stringify(cars[i])));
-            console.info('Added <--> ', cars[i]);
-        }
+        // for (let i = 0; i < cars.length; i++) {
+        //     cars[i].docType = 'car';
+        //     await ctx.stub.putState('CAR' + i, Buffer.from(JSON.stringify(cars[i])));
+        //     console.info('Added <--> ', cars[i]);
+        // }
         console.info('============= END : Initialize Ledger ===========');
     }
 
