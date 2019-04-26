@@ -8,6 +8,11 @@ import { asn } from './asn';
 import { AdvanceShipNotice } from './asn';
 
 export class Trace extends Contract {
+
+    public  operators: string[] = ['EQ', 'GT', 'GTE', 'LT', 'LTE', 'NE'];
+    public  operatorsMapping: string[] = ['$eq', '$gt', '$gte', '$lt', '$lte', '$ne'];
+    public explicitOpertors: string[] = ['OR', 'AND'];
+    public explicitOpertorsMapping: string[] = ['$or', '$and'];
     public async initLedger(ctx: Context) {
         console.info('============= START : Initialize Ledger ===========');
         console.info('============= END : Initialize Ledger ===========');
@@ -16,16 +21,17 @@ export class Trace extends Contract {
     public async createASN(ctx: Context, poNumber: string, asnXML: string, asnJson: string) {
         console.info('============= START : Create ASN ===========');
         const advanceShipNotice: AdvanceShipNotice = JSON.parse(asnJson);
-        const asn: asn = {
+        const obj: asn = {
             advanceShipNotice,
             asnJson,
             asnXML,
-            docType: 'asn',
+            docType: 'ASN',
             poNumber,
         };
+        obj[`status`] = advanceShipNotice.status || 'ACTIVE';
 
-        console.info('Asn Json  asn:: ' + asn.asnJson + '::::=====>>>' + asn.advanceShipNotice.FileHeader.GSSenderID +
-        '=====>>>' + asn.asnXML);
+        console.info('Asn Json  asn:: ' + obj.asnJson + '::::=====>>>' + obj.advanceShipNotice.FileHeader.GSSenderID +
+        '=====>>>' + obj.asnXML);
 
         await ctx.stub.putState(poNumber, Buffer.from(JSON.stringify(asn)));
         console.info('============= END : Create ASN ===========');
@@ -43,6 +49,8 @@ export class Trace extends Contract {
     public async createPO(ctx: Context, poNumber: string, poJson: string): Promise<string> {
         console.info('============= START : Create PO ===========');
         const obj = this.convertToJson(poJson);
+        obj[`docType`] = obj.docType || 'PO';
+        obj[`status`] = obj.status || 'CREATED';
         await ctx.stub.putState(poNumber, Buffer.from(JSON.stringify(obj)));
         console.info('============= END : Create PO ===========');
         return poJson;
@@ -60,6 +68,8 @@ export class Trace extends Contract {
     public async createLocation(ctx: Context, locationId: string, locationJson: string): Promise<string> {
         console.info('============= START : Create Location ===========');
         const obj = this.convertToJson(locationJson);
+        obj[`docType`] = obj.docType || 'LOCATION';
+        obj[`status`] = obj.status || 'ACTIVE';
         await ctx.stub.putState(locationId, Buffer.from(JSON.stringify(obj)));
         console.info('============= END : Create Location ===========');
         return locationJson;
@@ -68,16 +78,29 @@ export class Trace extends Contract {
     public async createProduct(ctx: Context, productId: string, productJson: string): Promise<string> {
         console.info('============= START : Create Product ===========');
         const obj = this.convertToJson(productJson);
+        obj[`docType`] = obj.docType || 'PRODUCT';
+        obj[`status`] = obj.status || 'ACTIVE';
         await ctx.stub.putState(productId, Buffer.from(JSON.stringify(obj)));
         console.info('============= END : Create Product ===========');
         return productJson;
     }
 
-    private async serializeHistoryData(arr, obj: Iterators.HistoryQueryIterator) {
+    public async queryDb(ctx: Context, queryString: string, type = 'OR'): Promise<string> {
+        console.info('============= START : Genric Query DB ===========');
+        const queryStr = this.constructQueryStr(queryString, type);
+        const queryData = [];
+        const queryIt: Iterators.StateQueryIterator = await ctx.stub.getQueryResult(queryStr);
+        const resp = await this.serializeHistoryData(queryData, queryIt);
+        console.info('============= END : Genric Query DB ===========');
+        return resp;
+    }
+
+    private async serializeHistoryData(arr, obj: Iterators.HistoryQueryIterator | Iterators.StateQueryIterator) {
         let flag = true;
         while (flag) {
             const response = await obj.next();
             if (response.value && response.value.value && response.value.value.toString()) {
+                console.log('response.value.value', response.value.value.toString());
                 try {
                     const tmp = JSON.parse(response.value.value.toString('utf8'));
                     arr.push(tmp);
@@ -92,12 +115,81 @@ export class Trace extends Contract {
         return arr;
     }
 
-    private convertToJson(strJson: string) {
+    private constructQueryStr(str, type = 'OR'): string {
+        const param = str.split(',');
+        const paramsArr = [];
+        param.map((prm) => {
+            let tmp = [];
+            let operator = '';
+            this.operators.map((o) => {
+                const regx = new RegExp(o);
+                if (prm.match(regx)) {
+                    operator = o;
+                }
+            });
+            if (!operator) {
+                throw({err: 'Supported Operators are:: EQ, GT, GTE, LT, LTE, NE'});
+                return;
+            }
+            tmp = prm.split(operator);
+            if (tmp.length < 2) {
+                throw({err: 'Invalid search parameters'});
+                return;
+            }
+            tmp = [tmp[0], operator, tmp[1]];
+            paramsArr.push(tmp);
+        });
+        const tmpStr: string = this.constructQueryObj(paramsArr, type);
+        return tmpStr;
+    }
+
+    private constructQueryObj(objArr, type): string {
+        const tmp = {};
+        objArr.map((obj) => {
+            const paramName = obj[0];
+            const operator = obj[1];
+            const val = obj[2];
+            this.embedNestedObj(tmp, paramName, operator, val);
+        });
+        const explicitOp = this.explicitOpertorsMapping[this.explicitOpertors.indexOf(type)];
+        const tmpObj = {selector: {}};
+        tmpObj.selector[`${explicitOp}`] = this.putObjInArr(tmp);
+        return JSON.stringify(tmpObj);
+    }
+
+    private embedNestedObj(obj, paramNameStr, operator, value) {
+        const nestedParams = paramNameStr.split('.');
+        if (!obj[nestedParams[0]]) {
+            obj[nestedParams[0]] = {};
+        }
+        if (nestedParams.length === 1) {
+            const actualOp = this.operatorsMapping[this.operators.indexOf(operator)];
+            obj[nestedParams[0]] = {};
+            obj[nestedParams[0]][actualOp] =  value;
+            return;
+        }
+        this.embedNestedObj(obj[nestedParams[0]], nestedParams.splice(1, nestedParams.length).join('.')
+        , operator, value);
+    }
+
+    private putObjInArr(obj) {
+        const keys = Object.keys(obj);
+        const arr = [];
+        for ( const key of keys) {
+            const tmp = {};
+            tmp[`${key}`] = obj[key];
+            arr.push(tmp);
+        }
+        return arr;
+    }
+
+    private convertToJson(strJson: string): any {
         let obj = strJson;
         try {
             obj = JSON.parse(strJson);
         } catch (e) {
-            //
+            throw({ErrMsg: 'Invalid JSON Object', err: e});
+            return;
         }
         return obj;
     }
