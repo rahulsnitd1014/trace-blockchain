@@ -18,33 +18,34 @@ export class Trace extends Contract {
         console.info('============= END : Initialize Ledger ===========');
     }
 
-    public async createASN(ctx: Context, poNumber: string, asnXML: string, asnJson: string) {
-        console.info('============= START : Create ASN ===========');
-        const advanceShipNotice: AdvanceShipNotice = JSON.parse(asnJson);
-        const obj: asn = {
-            advanceShipNotice,
-            asnJson,
-            asnXML,
-            docType: 'ASN',
-            poNumber,
-        };
-        obj[`status`] = advanceShipNotice.status || 'ACTIVE';
+    // public async createASN(ctx: Context, poNumber: string, asnXML: string, asnJson: string) {
+    //     console.info('============= START : Create ASN ===========');
+    //     const advanceShipNotice: AdvanceShipNotice = JSON.parse(asnJson);
+    //     const obj: asn = {
+    //         advanceShipNotice,
+    //         asnJson,
+    //         asnXML,
+    //         docType: 'ASN',
+    //         poNumber,
+    //     };
+    //     obj[`status`] = advanceShipNotice.status || 'ACTIVE';
 
-        console.info('Asn Json  asn:: ' + obj.asnJson + '::::=====>>>' + obj.advanceShipNotice.FileHeader.GSSenderID +
-        '=====>>>' + obj.asnXML);
+    //     console.info('Asn Json  asn:: ' + obj.asnJson + '::::=====>>>'
+    // + obj.advanceShipNotice.FileHeader.GSSenderID +
+    //     '=====>>>' + obj.asnXML);
 
-        await ctx.stub.putState(poNumber, Buffer.from(JSON.stringify(asn)));
-        console.info('============= END : Create ASN ===========');
-    }
+    //     await ctx.stub.putState(poNumber, Buffer.from(JSON.stringify(asn)));
+    //     console.info('============= END : Create ASN ===========');
+    // }
 
-    public async queryASN(ctx: Context, poNumber: string): Promise<string> {
-        const asnAsBytes = await ctx.stub.getState(poNumber); // get the asn from chaincode state
-        if (!asnAsBytes || asnAsBytes.length === 0) {
-            throw new Error(`${poNumber} does not exist`);
-        }
-        console.log(asnAsBytes.toString());
-        return asnAsBytes.toString();
-    }
+    // public async queryASN(ctx: Context, poNumber: string): Promise<string> {
+    //     const asnAsBytes = await ctx.stub.getState(poNumber); // get the asn from chaincode state
+    //     if (!asnAsBytes || asnAsBytes.length === 0) {
+    //         throw new Error(`${poNumber} does not exist`);
+    //     }
+    //     console.log(asnAsBytes.toString());
+    //     return asnAsBytes.toString();
+    // }
 
     public async createPO(ctx: Context, poNumber: string, poJson: string): Promise<string> {
         console.info('============= START : Create PO ===========');
@@ -70,6 +71,7 @@ export class Trace extends Contract {
         const obj = this.convertToJson(locationJson);
         obj[`docType`] = obj.docType || 'LOCATION';
         obj[`status`] = obj.status || 'ACTIVE';
+        // const dataType = this.dataType(obj);
         await ctx.stub.putState(locationId, Buffer.from(JSON.stringify(obj)));
         console.info('============= END : Create Location ===========');
         return locationJson;
@@ -188,10 +190,37 @@ export class Trace extends Contract {
         try {
             obj = JSON.parse(strJson);
         } catch (e) {
-            throw({ErrMsg: 'Invalid JSON Object', err: e});
+            throw({errMsg: 'Invalid JSON Object', err: e});
             return;
         }
         return obj;
     }
+
+    // OBJECT ARRAY are supported
+    // private dataType(data) {
+    //     let type = 'UNKNOWN';
+    //     switch (data) {
+    //         case (data instanceof Array && data instanceof Object): type = 'ARRAY';
+    //                                                                 break;
+    //         case (data instanceof Object): type = 'OBJECT';
+    //                                        break;
+    //     }
+    //     if (type === 'UNKNOWN') {
+    //         throw({errMsg: 'Object, Array supported in request body'});
+    //     }
+    //     return type;
+    // }
+
+    // private async persistInDb(ctx, type, obj) {
+    //     if (type === 'ARRAY') {
+    //         obj.map((oo) => {
+    //             const id = oo.id;
+    //             await ctx.stub.putState(id, Buffer.from(JSON.stringify(oo)));
+    //         });
+    //     } else {
+    //         const id = obj.id;
+    //         await ctx.stub.putState(id, Buffer.from(JSON.stringify(obj)));
+    //     }
+    // }
 
 }
