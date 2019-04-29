@@ -75,6 +75,18 @@ export class Trace extends Contract {
         return resp;
     }
 
+    public async queryPO(ctx: Context, poNumber: string): Promise<string> {
+        console.info('============= START queryPO ===========');
+        const poAsBytes = await ctx.stub.getState(poNumber); // get the po from chaincode state
+        if (!poAsBytes || poAsBytes.length === 0) {
+            throw new Error(`${poNumber} does not exist queryPO`);
+        }
+        console.log(poAsBytes.toString());
+
+        return JSON.stringify(JSON.parse(poAsBytes.toString('utf8')));
+    }
+
+
     public async createLocation(ctx: Context, locationId: string, locationJson: string): Promise<string> {
         console.info('============= START : Create Location ===========');
         const obj = this.convertToJson(locationJson);
