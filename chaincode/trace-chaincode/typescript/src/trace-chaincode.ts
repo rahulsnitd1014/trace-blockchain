@@ -57,6 +57,15 @@ export class Trace extends Contract {
         return poJson;
     }
 
+    public async createEvent(ctx: Context, eventId: string, eventJson: string): Promise<string> {
+        console.info('============= START : Create Event ===========');
+        const obj = this.convertToJson(eventJson);
+        obj[`docType`] = obj.docType || 'EVENT';
+        await ctx.stub.putState(eventId, Buffer.from(JSON.stringify(obj)));
+        console.info('============= END : Create Event ===========');
+        return eventJson;
+    }
+
     public async POHistory(ctx: Context, poNumber: string): Promise<string> {
         console.info('============= START : Get PO History ===========');
         const history = [];
