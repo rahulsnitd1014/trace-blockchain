@@ -83,7 +83,7 @@ export class Trace extends Contract {
         }
         console.log(poAsBytes.toString());
 
-        return JSON.stringify(JSON.parse(poAsBytes.toString('utf8')));
+        return poAsBytes.toString();
     }
 
     public async createLocation(ctx: Context, locationId: string, locationJson: string): Promise<string> {
