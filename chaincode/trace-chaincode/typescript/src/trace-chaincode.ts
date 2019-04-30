@@ -70,7 +70,7 @@ export class Trace extends Contract {
         console.info('============= START : Get PO History ===========');
         const history = [];
         const historyIt  = await ctx.stub.getHistoryForKey(poNumber);
-        const resp =  await this.serializeHistoryData(history, historyIt);
+        const resp =  await this.serializeData(history, historyIt);
         console.info('============= END : Get PO History ===========');
         return resp;
     }
@@ -85,7 +85,6 @@ export class Trace extends Contract {
 
         return JSON.stringify(JSON.parse(poAsBytes.toString('utf8')));
     }
-
 
     public async createLocation(ctx: Context, locationId: string, locationJson: string): Promise<string> {
         console.info('============= START : Create Location ===========');
@@ -113,12 +112,25 @@ export class Trace extends Contract {
         const queryStr = this.constructQueryStr(queryString, type);
         const queryData = [];
         const queryIt: Iterators.StateQueryIterator = await ctx.stub.getQueryResult(queryStr);
-        const resp = await this.serializeHistoryData(queryData, queryIt);
+        const resp = await this.serializeData(queryData, queryIt);
         console.info('============= END : Genric Query DB ===========');
         return resp;
     }
 
-    private async serializeHistoryData(arr, obj: Iterators.HistoryQueryIterator | Iterators.StateQueryIterator) {
+    public async queryHistoryByKey(ctx: Context, key: string, docType: string): Promise<string> {
+        console.info('============= START : Get History By Key ===========');
+        if (!key || !docType) {
+            throw({err: 'Key and DocType are required fields'});
+        }
+        const history = [];
+        const historyIt  = await ctx.stub.getHistoryForKey(key);
+        let resp =  await this.serializeData(history, historyIt);
+        resp = resp.filter((res) => res.docType === docType);
+        console.info('============= END : Get History By Key ===========');
+        return resp;
+    }
+
+    private async serializeData(arr, obj: Iterators.HistoryQueryIterator | Iterators.StateQueryIterator) {
         let flag = true;
         while (flag) {
             const response = await obj.next();
